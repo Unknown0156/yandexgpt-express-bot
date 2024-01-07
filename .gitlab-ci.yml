@@ -1,0 +1,45 @@
+stages:
+  - build
+  - deploy
+  - cleanup
+
+before_script:
+  - source "$(werf ci-env gitlab --as-file)"
+
+Build and Publish:
+  stage: build
+  script:
+    - werf cr login harbor.example.ru
+    - werf build
+  except: [schedules]
+  tags: [werf-kub]
+
+.base_deploy:
+  stage: deploy
+  script:
+    - werf converge --require-built-images=true --set "env_url=$(echo ${CI_ENVIRONMENT_URL} | cut -d / -f 3),env_name=${CI_ENVIRONMENT_NAME},express_botid=${EXPRESS_BOT_ID},express_botkey=${EXPRESS_BOT_KEY},api_key=${YANDEX_API_KEY},api_url=${YANDEX_URL}"
+  except: [schedules]
+  tags: [werf-kub]
+
+Deploy to Staging:
+  extends: .base_deploy
+  environment:
+    name: staging
+    url: https://yandexgpt-express-staging.example.ru
+  only: [main]
+
+Deploy to Production:
+  extends: .base_deploy
+  environment:
+    name: production
+    url: https://yandexgpt-express.example.ru
+  only: [main]
+  when: manual
+
+Cleanup:
+  stage: cleanup
+  script:
+    - werf cr login harbor.example.ru
+    - werf cleanup
+  only: [schedules]
+  tags: [werf-kub]

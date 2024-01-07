@@ -1,0 +1,3 @@
+/.helm/
+.gitlab-ci.yml
+werf.yaml
